@@ -51,5 +51,5 @@ TELDBNAME=
 
 4. Run the bot
 ```
-python bot.py
+python main.py
 ```
