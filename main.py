@@ -1,10 +1,13 @@
 import os
+from dotenv import load_dotenv
 import random
 import psycopg2
 import logging
 from telebot import types, TeleBot, custom_filters
 from telebot.storage import StateMemoryStorage
 from telebot.handler_backends import State, StatesGroup
+
+load_dotenv()
 
 TELDBNAME = os.getenv("TELDBNAME")
 USER = os.getenv("USER")
