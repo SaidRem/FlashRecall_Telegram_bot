@@ -235,24 +235,3 @@ if __name__ == "__main__":
 
     for eng, rus in words:
         db.add_word(eng, rus)
-
-    # db.add_client("John", "Doe", "john@mail.com")
-    # db.add_client("Adam", "Smit", "adam_smit@mail.com")
-    # db.add_client("Jane", "Doe", "jane_doe@mail.com")
-
-    # db.add_phone(1, '89171235678')
-    # db.add_phone(1, '89171235679')
-
-    # result = db.find_client()
-
-    # for client in result:
-    #     print(f"name: {client[0]} | surname: {client[1]} | email: {client[2]} | tel: {client[3]}")
-
-    # result = db.find_client(last_name="Smit")
-    # for client in result:
-    #     print(f"name: {client[0]} | surname: {client[1]} | email: {client[2]} | tel: {client[3]}")
-
-    # db.delete_phone(1, '89171235678')
-    # db.delete_client(3)
-
-    # db.update_client(1, email="john.doe@mail.com")
