@@ -13,7 +13,8 @@ This is a Telegram bot designed to help users learn English words through a simp
 
 Before running the bot, you need to:
 
-- Have a working PostgreSQL database with the schema already created (users, words, user_favorites, user_hidden_words).
+- Have a working PostgreSQL database with the schema already created (users, words, user_favorites, user_hidden_words). To create a database with tables you can use the script `create_database.py`
+
 ![Scheme of DB](https://github.com/SaidRem/FlashRecall_Telegram_bot/blob/master/Scheme_of_database.png)
 - Get your own [Telegram Bot API token](https://core.telegram.org/bots#botfather).
 - Set up Python 3 and the necessary dependencies.
