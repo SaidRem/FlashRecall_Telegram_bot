@@ -13,7 +13,7 @@ This is a Telegram bot designed to help users learn English words through a simp
 
 Before running the bot, you need to:
 
-- Have a working PostgreSQL database with the schema already created (users, words, user_favorites, user_hidden_words). To create a database with tables you can use the script `create_database.py`
+- Have a working PostgreSQL database. You can create a database named `flashrecall_db` manually and create tables and fill them using scripts `sql_queries.sql` and `inserts.sql` OR run the script `create_database.py` with the variables `DBNAME` and `USER` pre-set in the `.env` to the `postgres` value.
 
 ![Scheme of DB](https://github.com/SaidRem/FlashRecall_Telegram_bot/blob/master/Scheme_of_database.png)
 - Get your own [Telegram Bot API token](https://core.telegram.org/bots#botfather).
@@ -30,34 +30,35 @@ Before running the bot, you need to:
 
 2. Install the required Python packages:
 
-```
-pip install -r requirements.txt
-```
+   ```
+   pip install -r requirements.txt
+   ```
 
 3. Set up your database connection in the `.env`
 
-```
-API_TOKEN=your_telegram_bot_token
-ADMIN_ID=123456789
+   ```
+   API_TOKEN=your_telegram_bot_token
+   ADMIN_ID=123456789
 
-# PostgreSQL config
-TELDBNAME=your_db_name
-USER=your_db_user
-PASSWORD=your_db_password
-HOST=localhost
-PORT=5432
+   # PostgreSQL config
+   DBNAME=postgres
+   USER=postgres
+   TELDBNAME=flashrecall_db
+   PASSWORD=your_db_password
+   HOST=localhost
+   PORT=5432
 
-# Logging (optional)
-LOGGING=True
-LOGS_FILENAME=bot.log
+   # Logging (optional)
+   LOGGING=True
+   LOGS_FILENAME=bot.log
 
-```
+   ```
 5. Create tables in your database for the telegram bot
 
-```
-python create_database.py
-```
+   ```
+   python create_database.py
+   ```
 4. Run the bot
-```
-python main.py
-```
+   ```
+   python main.py
+   ```
