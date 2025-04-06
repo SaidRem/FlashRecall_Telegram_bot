@@ -21,10 +21,11 @@ LOGS_FILENAME = os.getenv("LOGS_FILENAME")
 
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(filename=LOGS_FILENAME,
-                    level=logging.INFO,
-                    format="%(message)s | %(levelname)s | %(asctime)s"
-                    )
+logging.basicConfig(
+    filename=LOGS_FILENAME,
+    level=logging.INFO,
+    format="%(message)s | %(levelname)s | %(asctime)s"
+)
 
 logger.info('Start telegram bot...')
 logger.info(f"{TELDBNAME = }")
@@ -72,19 +73,29 @@ def fetch_random_word(telegram_id):
             FROM words w 
             WHERE NOT EXISTS (
                 SELECT 1 FROM user_hidden_words uhw 
-                WHERE uhw.word_id = w.id AND uhw.user_id = (SELECT id FROM users WHERE telegram_id = %s)
+                WHERE uhw.word_id = w.id AND uhw.telegram_id = %s
             )
+            AND (w.added_by IS NULL OR w.added_by = %s)
             ORDER BY RANDOM() LIMIT 1;
-        """, (telegram_id,))
+        """, (telegram_id, telegram_id))
         return cur.fetchone()
 
 
-def fetch_random_options(correct_word):
+def fetch_random_options(correct_word, telegram_id):
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute("""
-            SELECT english FROM words WHERE english != %s ORDER BY RANDOM() LIMIT 3;
-        """, (correct_word,))
-        return [row[0] for row in cur.fetchall()]
+            SELECT w.english
+            FROM words w
+            LEFT JOIN user_hidden_words h ON w.id = h.word_id
+                    AND h.telegram_id = %s
+            WHERE h.word_id IS NULL
+              AND (w.added_by IS NULL OR w.added_by = %s) AND w.english != %s
+            ORDER BY RANDOM()
+            LIMIT 3;
+        """, (telegram_id, telegram_id, correct_word,))
+        result = [row[0] for row in cur.fetchall()]
+        logger.info(result)
+        return result
 
 
 @bot.message_handler(commands=['start'])
@@ -92,7 +103,9 @@ def start(message):
     user = message.from_user
     logger.info(f"{user.id = }, {user.username = }")
     ensure_user_exists(user.id, user.username, user.first_name, user.last_name)
-    bot.send_message(message.chat.id, "Привет! Давай учить английские слова!")
+    text = """Привет! Давай учить английские слова!
+    Hello! Let's learn english words!"""
+    bot.send_message(message.chat.id, text)
     create_cards(message)
 
 
@@ -105,7 +118,7 @@ def create_cards(message):
         return
 
     target_word, translate = word
-    options = fetch_random_options(target_word) + [target_word]
+    options = fetch_random_options(target_word, telegram_id) + [target_word]
     random.shuffle(options)
 
     # Save before send
@@ -122,7 +135,9 @@ def create_cards(message):
     markup.add(*buttons)
 
     # Send only after recording the data
-    bot.send_message(message.chat.id, f"Выбери перевод слова:\n🇷🇺 {translate}", reply_markup=markup)
+    bot.send_message(message.chat.id,
+                     f"Выбери перевод слова:\n🇷🇺 {translate}",
+                     reply_markup=markup)
 
 
 @bot.message_handler(func=lambda message: message.text == Command.NEXT)
@@ -133,42 +148,69 @@ def next_cards(message):
 @bot.message_handler(func=lambda message: message.text == Command.DELETE_WORD)
 def delete_word(message):
     with bot.retrieve_data(message.from_user.id, message.chat.id) as data:
+        telegram_id = message.from_user.id
         word = data.get('target_word')
         if word:
             with get_connection() as conn, conn.cursor() as cur:
+                # Get the word and ownership
                 cur.execute("""
-                    INSERT INTO user_hidden_words (user_id, word_id)
-                    SELECT id, (SELECT id FROM words WHERE english = %s) FROM users WHERE telegram_id = %s;
-                """, (word, message.from_user.id))
-            bot.send_message(message.chat.id, f"Слово '{word}' скрыто для вас!")
+                    SELECT id, added_by FROM words
+                    WHERE english = %s
+                """, (word,))
+                result = cur.fetchone()
+
+                if not result:
+                    logger.info(f"Word '{word}' not found.")
+                else:
+                    word_id, added_by = result
+                    if added_by == telegram_id:
+                        # User added it: delete the word from db
+                        cur.execute(
+                            "DELETE FROM words WHERE id = %s", (word_id,)
+                            )
+                    else:
+                        # Global word: hide it for the user
+                        cur.execute("""
+                            INSERT INTO user_hidden_words (telegram_id, word_id)
+                            VALUES (%s, %s)
+                            ON CONFLICT DO NOTHING
+                        """, (telegram_id, word_id))
+            bot.send_message(message.chat.id, 
+                             f"Слово '{word}' удалено для вас!")
     create_cards(message)
 
 
 @bot.message_handler(func=lambda message: message.text == Command.ADD_WORD)
 def add_word(message):
-    bot.send_message(message.chat.id, "Введите новое слово (английское и русское через тире):")
+    bot.send_message(message.chat.id,
+                     "Введите новое слово (английское и русское через тире):"
+                     )
     bot.register_next_step_handler(message, save_word)
 
 
 def save_word(message):
+    telegram_id = message.from_user.id
     try:
         english, russian = message.text.split('-')
         english, russian = english.strip(), russian.strip()
         with get_connection() as conn, conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO words (english, russian) VALUES (%s, %s) ON CONFLICT DO NOTHING RETURNING id;
-            """, (english, russian))
+                INSERT INTO words (english, russian, added_by)
+                VALUES (%s, %s, %s) ON CONFLICT DO NOTHING RETURNING id;
+            """, (english, russian, telegram_id))
             word_id = cur.fetchone()
             if word_id:
-                cur.execute("""
-                    INSERT INTO user_favorites (user_id, word_id) 
-                    SELECT id, %s FROM users WHERE telegram_id = %s;
-                """, (word_id[0], message.from_user.id))
-                bot.send_message(message.chat.id, "Слово добавлено!")
+                bot.send_message(
+                    message.chat.id,
+                    "Слово добавлено!\nThe word added!")
             else:
-                bot.send_message(message.chat.id, "Слово уже существует!")
+                bot.send_message(
+                    message.chat.id,
+                    "Слово уже существует!\nThe word already exists!")
     except ValueError:
-        bot.send_message(message.chat.id, "Неправильный формат! Введите как 'apple - яблоко'")
+        bot.send_message(message.chat.id,
+                         "Неправильный формат! Введите как 'apple - яблоко'"
+                         )
 
 
 @bot.message_handler(func=lambda message: True, content_types=['text'])
@@ -180,14 +222,25 @@ def message_reply(message):
         translate_word = data.get('translate_word')
 
         if target_word is None or translate_word is None:
-            bot.send_message(message.chat.id, "Что-то пошло не так. Нажмите /cards для новой карточки.")
+            bot.send_message(
+                message.chat.id,
+                "Нажмите /cards или Дальше для нового слова."
+            )
             return
 
         if text == target_word:
-            bot.send_message(message.chat.id, f"Отлично!❤ {target_word} -> {translate_word}\n\n⏭ Нажми «{Command.NEXT}» для следующего слова")
+            info_msg1 = f"Отлично!❤ {target_word} -> {translate_word}"
+            info_msg2 = f"⏭ Нажми «{Command.NEXT}» для следующего слова"
+            bot.send_message(
+                message.chat.id,
+                f"{info_msg1}\n{info_msg2}"
+            )
             bot.delete_state(telegram_id, message.chat.id)  # Clearing the state
         else:
-            bot.send_message(message.chat.id, f"Ошибка! Попробуй снова перевести 🇷🇺 {translate_word}")
+            bot.send_message(
+                message.chat.id,
+                f"Ошибка! Попробуй снова перевести 🇷🇺 {translate_word}"
+            )
 
 
 bot.add_custom_filter(custom_filters.StateFilter(bot))
