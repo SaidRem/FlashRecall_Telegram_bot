@@ -92,8 +92,7 @@ class PostgreSQLDatabase:
         """Create tables if they do not exist."""
         self._execute_query("""
                         CREATE TABLE IF NOT EXISTS users (
-                                id SERIAL PRIMARY KEY,
-                                telegram_id BIGINT UNIQUE NOT NULL,
+                                telegram_id BIGINT PRIMARY KEY,
                                 username TEXT,
                                 first_name TEXT,
                                 last_name TEXT,
@@ -104,21 +103,15 @@ class PostgreSQLDatabase:
                         CREATE TABLE IF NOT EXISTS words (
                                 id SERIAL PRIMARY KEY,
                                 english TEXT NOT NULL UNIQUE,
-                                russian TEXT NOT NULL UNIQUE
-                        );
-        """)
-        self._execute_query("""
-                        CREATE TABLE IF NOT EXISTS user_favorites (
-                                user_id INT REFERENCES users(id) ON DELETE CASCADE,
-                                word_id INT REFERENCES words(id) ON DELETE CASCADE,
-                                PRIMARY KEY (user_id, word_id)
+                                russian TEXT NOT NULL UNIQUE,
+                                added_by BIGINT REFERENCES users(telegram_id) ON DELETE CASCADE
                         );
         """)
         self._execute_query("""
                         CREATE TABLE IF NOT EXISTS user_hidden_words (
-                                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                                telegram_id BIGINT REFERENCES users(telegram_id) ON DELETE CASCADE,
                                 word_id INT REFERENCES words(id) ON DELETE CASCADE,
-                                PRIMARY KEY (user_id, word_id)
+                                PRIMARY KEY (telegram_id, word_id)
                         );
         """)
 
@@ -166,8 +159,8 @@ class PostgreSQLDatabase:
 
     def add_word(self, english, russian):
         query = sql.SQL("""
-            INSERT INTO words (english, russian)
-            VALUES (%s, %s);
+            INSERT INTO words (english, russian, added_by)
+            VALUES (%s, %s, NULL);
         """)
         self._execute_query(query, (english, russian))
 
@@ -193,48 +186,48 @@ if __name__ == "__main__":
         # Существительные (Nouns)
         ['table', 'стол'],
         ['computer', 'компьютер'],
-        # ['book', 'книга'],
-        # ['water', 'вода'],
-        # ['tree', 'дерево'],
-        # ['phone', 'телефон'],
-        # ['car', 'машина'],
-        # ['house', 'дом'],
-        # ['sun', 'солнце'],
-        # ['dog', 'собака'],
+        ['book', 'книга'],
+        ['water', 'вода'],
+        ['tree', 'дерево'],
+        ['phone', 'телефон'],
+        ['car', 'машина'],
+        ['house', 'дом'],
+        ['sun', 'солнце'],
+        ['dog', 'собака'],
 
-        # # Прилагательные (Adjectives)
-        # ['big', 'большой'],
-        # ['small', 'маленький'],
-        # ['fast', 'быстрый'],
-        # ['slow', 'медленный'],
-        # ['beautiful', 'красивый'],
-        # ['ugly', 'уродливый'],
-        # ['smart', 'умный'],
-        # ['stupid', 'глупый'],
-        # ['hot', 'горячий'],
-        # ['cold', 'холодный'],
+        # Прилагательные (Adjectives)
+        ['big', 'большой'],
+        ['small', 'маленький'],
+        ['fast', 'быстрый'],
+        ['slow', 'медленный'],
+        ['beautiful', 'красивый'],
+        ['ugly', 'уродливый'],
+        ['smart', 'умный'],
+        ['stupid', 'глупый'],
+        ['hot', 'горячий'],
+        ['cold', 'холодный'],
 
-        # # Глаголы (Verbs)
-        # ['run', 'бежать'],
-        # ['eat', 'есть'],
-        # ['sleep', 'спать'],
-        # ['read', 'читать'],
-        # ['write', 'писать'],
-        # ['speak', 'говорить'],
-        # ['listen', 'слушать'],
-        # ['learn', 'учить'],
-        # ['work', 'работать'],
-        # ['play', 'играть'],
+        # Глаголы (Verbs)
+        ['run', 'бежать'],
+        ['eat', 'есть'],
+        ['sleep', 'спать'],
+        ['read', 'читать'],
+        ['write', 'писать'],
+        ['speak', 'говорить'],
+        ['listen', 'слушать'],
+        ['learn', 'учить'],
+        ['work', 'работать'],
+        ['play', 'играть'],
 
-        # # Наречия (Adverbs)
-        # ['quickly', 'быстро'],
-        # ['slowly', 'медленно'],
-        # ['loudly', 'громко'],
-        # ['quietly', 'тихо'],
-        # ['well', 'хорошо']
+        # Наречия (Adverbs)
+        ['quickly', 'быстро'],
+        ['slowly', 'медленно'],
+        ['loudly', 'громко'],
+        ['quietly', 'тихо'],
+        ['well', 'хорошо']
     ]
 
     for eng, rus in words:
         db.add_word(eng, rus)
 
-    logger.info(f"Database and tables for telegram bot successfully created!!!")
+    logging.info(f"Database and tables for telegram bot successfully created!!!")
