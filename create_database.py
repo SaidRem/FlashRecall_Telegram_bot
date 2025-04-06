@@ -14,6 +14,7 @@ USER = os.getenv("USER")
 PASSWORD = os.getenv("PASSWORD")
 HOST = os.getenv("HOST")
 PORT = os.getenv("PORT")
+TELDBNAME = os.getenv("TELDBNAME")
 
 if LOGGING:
     logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ def create_database(dbname, conn_params):
             conn.close()
 
 
-def create_telegram_db(dbname="FlashRecall_db", conn_params=None):
+def create_telegram_db(dbname="flashrecall_db", conn_params=None):
     """Function to create a database."""
     if conn_params is None:
         logging.error("Connection parameters not specified. Database not created.")
@@ -180,10 +181,10 @@ if __name__ == "__main__":
         "port": PORT
     }
 
-    create_telegram_db(dbname="FlashRecall_db", conn_params=conn_params)
+    create_telegram_db(dbname=TELDBNAME, conn_params=conn_params)
 
     conn_params_newdb = copy.deepcopy(conn_params)
-    conn_params_newdb["dbname"] = "FlashRecall_db"
+    conn_params_newdb["dbname"] = TELDBNAME
     db = PostgreSQLDatabase(**conn_params_newdb)
     db.connect()
     db.create_tables()
@@ -192,46 +193,48 @@ if __name__ == "__main__":
         # Существительные (Nouns)
         ['table', 'стол'],
         ['computer', 'компьютер'],
-        ['book', 'книга'],
-        ['water', 'вода'],
-        ['tree', 'дерево'],
-        ['phone', 'телефон'],
-        ['car', 'машина'],
-        ['house', 'дом'],
-        ['sun', 'солнце'],
-        ['dog', 'собака'],
+        # ['book', 'книга'],
+        # ['water', 'вода'],
+        # ['tree', 'дерево'],
+        # ['phone', 'телефон'],
+        # ['car', 'машина'],
+        # ['house', 'дом'],
+        # ['sun', 'солнце'],
+        # ['dog', 'собака'],
 
-        # Прилагательные (Adjectives)
-        ['big', 'большой'],
-        ['small', 'маленький'],
-        ['fast', 'быстрый'],
-        ['slow', 'медленный'],
-        ['beautiful', 'красивый'],
-        ['ugly', 'уродливый'],
-        ['smart', 'умный'],
-        ['stupid', 'глупый'],
-        ['hot', 'горячий'],
-        ['cold', 'холодный'],
+        # # Прилагательные (Adjectives)
+        # ['big', 'большой'],
+        # ['small', 'маленький'],
+        # ['fast', 'быстрый'],
+        # ['slow', 'медленный'],
+        # ['beautiful', 'красивый'],
+        # ['ugly', 'уродливый'],
+        # ['smart', 'умный'],
+        # ['stupid', 'глупый'],
+        # ['hot', 'горячий'],
+        # ['cold', 'холодный'],
 
-        # Глаголы (Verbs)
-        ['run', 'бежать'],
-        ['eat', 'есть'],
-        ['sleep', 'спать'],
-        ['read', 'читать'],
-        ['write', 'писать'],
-        ['speak', 'говорить'],
-        ['listen', 'слушать'],
-        ['learn', 'учить'],
-        ['work', 'работать'],
-        ['play', 'играть'],
+        # # Глаголы (Verbs)
+        # ['run', 'бежать'],
+        # ['eat', 'есть'],
+        # ['sleep', 'спать'],
+        # ['read', 'читать'],
+        # ['write', 'писать'],
+        # ['speak', 'говорить'],
+        # ['listen', 'слушать'],
+        # ['learn', 'учить'],
+        # ['work', 'работать'],
+        # ['play', 'играть'],
 
-        # Наречия (Adverbs)
-        ['quickly', 'быстро'],
-        ['slowly', 'медленно'],
-        ['loudly', 'громко'],
-        ['quietly', 'тихо'],
-        ['well', 'хорошо']
+        # # Наречия (Adverbs)
+        # ['quickly', 'быстро'],
+        # ['slowly', 'медленно'],
+        # ['loudly', 'громко'],
+        # ['quietly', 'тихо'],
+        # ['well', 'хорошо']
     ]
 
     for eng, rus in words:
         db.add_word(eng, rus)
+
+    logger.info(f"Database and tables for telegram bot successfully created!!!")
