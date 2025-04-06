@@ -15,7 +15,9 @@ Before running the bot, you need to:
 
 - Have a working PostgreSQL database. You can create a database named `flashrecall_db` manually and create tables and fill them using scripts `sql_queries.sql` and `inserts.sql` OR run the script `create_database.py` with the variables `DBNAME` and `USER` pre-set in the `.env` to the `postgres` value.
 
-![Scheme of DB](https://github.com/SaidRem/FlashRecall_Telegram_bot/blob/master/Scheme_of_database.png)
+
+   ![Scheme of DB](https://github.com/SaidRem/FlashRecall_Telegram_bot/blob/master/Scheme_of_database.png)
+
 - Get your own [Telegram Bot API token](https://core.telegram.org/bots#botfather).
 - Set up Python 3 and the necessary dependencies.
 
