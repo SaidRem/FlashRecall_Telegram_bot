@@ -81,19 +81,19 @@ def fetch_random_word(telegram_id):
         return cur.fetchone()
 
 
-def fetch_random_options(correct_word, telegram_id):
+def fetch_random_options(telegram_id):
     with get_connection() as conn, conn.cursor() as cur:
         cur.execute("""
-            SELECT w.english
+            SELECT w.english, w.russian
             FROM words w
             LEFT JOIN user_hidden_words h ON w.id = h.word_id
                     AND h.telegram_id = %s
             WHERE h.word_id IS NULL
-              AND (w.added_by IS NULL OR w.added_by = %s) AND w.english != %s
+              AND (w.added_by IS NULL OR w.added_by = %s)
             ORDER BY RANDOM()
-            LIMIT 3;
-        """, (telegram_id, telegram_id, correct_word,))
-        result = [row[0] for row in cur.fetchall()]
+            LIMIT 4;
+        """, (telegram_id, telegram_id))
+        result = [(row[0], row[1]) for row in cur.fetchall()]
         logger.info(result)
         return result
 
@@ -112,14 +112,10 @@ def start(message):
 @bot.message_handler(commands=['cards'])
 def create_cards(message):
     telegram_id = message.from_user.id
-    word = fetch_random_word(telegram_id)
-    if not word:
-        bot.send_message(message.chat.id, "Нет доступных слов!")
-        return
 
-    target_word, translate = word
-    options = fetch_random_options(target_word, telegram_id) + [target_word]
+    options = fetch_random_options(telegram_id)
     random.shuffle(options)
+    target_word, translate = options[0]
 
     # Save before send
     bot.set_state(telegram_id, MyStates.target_word, message.chat.id)
@@ -128,7 +124,7 @@ def create_cards(message):
         data['translate_word'] = translate
 
     markup = types.ReplyKeyboardMarkup(row_width=2)
-    buttons = [types.KeyboardButton(option) for option in options]
+    buttons = [types.KeyboardButton(option[0]) for option in options]
     buttons.extend([types.KeyboardButton(Command.NEXT),
                     types.KeyboardButton(Command.ADD_WORD),
                     types.KeyboardButton(Command.DELETE_WORD)])
@@ -202,11 +198,13 @@ def save_word(message):
             if word_id:
                 bot.send_message(
                     message.chat.id,
-                    "Слово добавлено!\nThe word added!")
+                    "Слово добавлено!\nThe word added!"
+                )
             else:
                 bot.send_message(
                     message.chat.id,
-                    "Слово уже существует!\nThe word already exists!")
+                    "Слово уже существует!\nThe word already exists!"
+                )
     except ValueError:
         bot.send_message(message.chat.id,
                          "Неправильный формат! Введите как 'apple - яблоко'"
