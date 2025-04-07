@@ -8,8 +8,8 @@ CREATE TABLE users (
 
 CREATE TABLE words (
     id SERIAL PRIMARY KEY,
-    english TEXT NOT NULL,
-    russian TEXT NOT NULL,
+    english TEXT NOT NULL UNIQUE,
+    russian TEXT NOT NULL UNIQUE,
     added_by BIGINT REFERENCES users(telegram_id) ON DELETE CASCADE
 );
 
