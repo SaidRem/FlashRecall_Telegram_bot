@@ -114,26 +114,40 @@ def create_cards(message):
     telegram_id = message.from_user.id
 
     options = fetch_random_options(telegram_id)
-    random.shuffle(options)
-    target_word, translate = options[0]
+    if options:
+        # random.shuffle(options)
+        target_word, translate = random.choice(options)
 
-    # Save before send
-    bot.set_state(telegram_id, MyStates.target_word, message.chat.id)
-    with bot.retrieve_data(telegram_id, message.chat.id) as data:
-        data['target_word'] = target_word
-        data['translate_word'] = translate
+        # Save before send
+        bot.set_state(telegram_id, MyStates.target_word, message.chat.id)
+        with bot.retrieve_data(telegram_id, message.chat.id) as data:
+            data['target_word'] = target_word
+            data['translate_word'] = translate
 
-    markup = types.ReplyKeyboardMarkup(row_width=2)
-    buttons = [types.KeyboardButton(option[0]) for option in options]
-    buttons.extend([types.KeyboardButton(Command.NEXT),
-                    types.KeyboardButton(Command.ADD_WORD),
-                    types.KeyboardButton(Command.DELETE_WORD)])
-    markup.add(*buttons)
+        markup = types.ReplyKeyboardMarkup(row_width=2)
+        buttons = [types.KeyboardButton(option[0]) for option in options]
+        buttons.extend([types.KeyboardButton(Command.NEXT),
+                        types.KeyboardButton(Command.ADD_WORD),
+                        types.KeyboardButton(Command.DELETE_WORD)])
+        markup.add(*buttons)
 
-    # Send only after recording the data
-    bot.send_message(message.chat.id,
-                     f"Выбери перевод слова:\n🇷🇺 {translate}",
-                     reply_markup=markup)
+        # Send only after recording the data
+        bot.send_message(message.chat.id,
+                         f"Выбери перевод слова:\n🇷🇺 {translate}",
+                         reply_markup=markup)
+    else:
+        bot.set_state(telegram_id, MyStates.target_word, message.chat.id)
+
+        markup = types.ReplyKeyboardMarkup(row_width=2)
+        buttons = [types.KeyboardButton(Command.NEXT),
+                   types.KeyboardButton(Command.ADD_WORD),
+                   types.KeyboardButton(Command.DELETE_WORD)]
+        markup.add(*buttons)
+
+        # Send only after recording the data
+        bot.send_message(message.chat.id,
+                         f"Добавь слова в свой справочник",
+                         reply_markup=markup)
 
 
 @bot.message_handler(func=lambda message: message.text == Command.NEXT)
@@ -195,16 +209,54 @@ def save_word(message):
                 VALUES (%s, %s, %s) ON CONFLICT DO NOTHING RETURNING id;
             """, (english, russian, telegram_id))
             word_id = cur.fetchone()
+            logger.info(f"save_word: {english = } {russian = } {telegram_id = }")
+            logger.info(f"{word_id = }")
             if word_id:
                 bot.send_message(
                     message.chat.id,
                     "Слово добавлено!\nThe word added!"
                 )
             else:
-                bot.send_message(
-                    message.chat.id,
-                    "Слово уже существует!\nThe word already exists!"
-                )
+                # Word exists, check if it's hidden for this user
+                cur.execute("""
+                    SELECT id FROM words WHERE english = %s;
+                """, (english,))
+                existing_row = cur.fetchone()
+
+                if existing_row:
+                    word_id = existing_row[0]
+
+                    # Check if this user has hidden the word
+                    cur.execute("""
+                        SELECT 1 FROM user_hidden_words
+                        WHERE telegram_id = %s AND word_id = %s;
+                    """, (telegram_id, word_id))
+                    is_hidden = cur.fetchone()
+
+                    if is_hidden:
+                        # Unhide the word for this user
+                        cur.execute("""
+                            DELETE FROM user_hidden_words
+                            WHERE telegram_id = %s AND word_id = %s;
+                        """, (telegram_id, word_id))
+
+                        bot.send_message(
+                            message.chat.id,
+                            "Слово добавлено.\n"
+                            "The word was restored from hidden."
+                        )
+                    else:
+                        # Word exists and is visible - no need to re-add
+                        bot.send_message(
+                            message.chat.id,
+                            "Слово уже существует!\nThe word already exists!"
+                        )
+                else:
+                    bot.send_message(
+                        message.chat.id,
+                        "Ошибка при сохранении слова.\n"
+                        "An error uccured while saving the word."
+                    )
     except ValueError:
         bot.send_message(message.chat.id,
                          "Неправильный формат! Введите как 'apple - яблоко'"
@@ -228,12 +280,15 @@ def message_reply(message):
 
         if text == target_word:
             info_msg1 = f"Отлично!❤ {target_word} -> {translate_word}"
-            info_msg2 = f"⏭ Нажми «{Command.NEXT}» для следующего слова"
-            bot.send_message(
-                message.chat.id,
-                f"{info_msg1}\n{info_msg2}"
-            )
             bot.delete_state(telegram_id, message.chat.id)  # Clearing the state
+
+            markup = types.ReplyKeyboardMarkup(row_width=2)
+            buttons = [types.KeyboardButton(Command.NEXT),
+                       types.KeyboardButton(Command.ADD_WORD),
+                       types.KeyboardButton(Command.DELETE_WORD)]
+            markup.add(*buttons)
+            bot.send_message(message.chat.id, info_msg1, reply_markup=markup)
+
         else:
             bot.send_message(
                 message.chat.id,
